@@ -1,13 +1,15 @@
 from pathlib import Path
 
+from Enums import DefaultConfigName
+
 
 class TTSClientConfig:
-    def __init__(self):
-        self._api_url: str = "http://localhost:9880/tts"
-        self._ref_audio_path: str = r"E:\program\GPT-SoVITS-v2pro-20250604\声音模型\v4\莫娜_ZH\reference_audios\中文\emotions\【默认】但我从来没见过她，而且她如果还活着，岁数也绝对不小了…老太婆都有好几百岁，她比老太婆还长寿呢！.wav"
-        self._prompt_lang: str = "zh"
-        self._target_lang: str = "zh"
-        self._max_queue_size: int = 5
+    def __init__(self, tts_client_config: dict):
+        self._api_url: str = tts_client_config[DefaultConfigName.ai][DefaultConfigName.api_url]
+        self._ref_audio_path: str = tts_client_config[DefaultConfigName.ai][DefaultConfigName.ref_audio_path]
+        self._prompt_lang: str = tts_client_config[DefaultConfigName.ai][DefaultConfigName.prompt_lang]
+        self._target_lang: str = tts_client_config[DefaultConfigName.ai][DefaultConfigName.target_lang]
+        self._max_queue_size: int = tts_client_config[DefaultConfigName.ai][DefaultConfigName.max_queue_size]
 
     @property
     def api_url(self) -> str:

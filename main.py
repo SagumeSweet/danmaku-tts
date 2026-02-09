@@ -19,6 +19,7 @@ from reactivestreams.subscription import Subscription
 from PySide6.QtWidgets import QApplication
 from qasync import QEventLoop
 
+from Enums import DefaultConfigName
 from Gui import MainConsole
 from Models import ResponseMessageDto
 from TTSClient import TTSClient
@@ -108,11 +109,13 @@ async def rsocket_worker(websocket_uri, console, tts_client):
         logging.error(f"RSocket 连接断开: {e}")
 
 
-def main():
+def main(conf_path: str = r".\configTemple.json"):
     # 1. 初始化日志和参数
     logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
-    rsocket_uri = "ws://localhost:39898"
-    task_ids = ["2020489947524583424", "2020467538520133632", "2020466446579224576"]
+    with open(conf_path, "r", encoding="utf-8") as f:
+        conf = json.load(f)
+    rsocket_uri = conf[DefaultConfigName.rsocket_uri]
+    task_ids = conf[DefaultConfigName.task_id]
     subscribe_payload_json["data"]["taskIds"] = task_ids
 
     # 2. 初始化 Qt + 异步事件循环
@@ -125,7 +128,7 @@ def main():
     console.show()
 
     # 4. 启动后台任务
-    tts_client = TTSClient()
+    tts_client = TTSClient(conf[DefaultConfigName.ttl_client])
     loop.create_task(tts_client.ai_tts_worker())  # 启动 TTS
     loop.create_task(rsocket_worker(rsocket_uri, console, tts_client))  # 启动弹幕监听
 

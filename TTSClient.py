@@ -10,9 +10,9 @@ from Models import TTSClientConfig
 
 
 class TTSClient(QObject):
-    def __init__(self):
+    def __init__(self, config: TTSClientConfig):
         super().__init__()
-        self.config: TTSClientConfig = TTSClientConfig()
+        self.config: TTSClientConfig = config
         self._tts_queue = asyncio.Queue()
 
         # 初始化 Qt 播放器

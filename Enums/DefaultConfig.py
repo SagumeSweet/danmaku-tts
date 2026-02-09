@@ -1,0 +1,13 @@
+from enum import StrEnum
+
+
+class DefaultConfigName(StrEnum):
+    rsocket_uri = "rsocketUri"
+    task_id = "taskId"
+    ttl_client = "ttlClient"
+    ai = "ai"
+    api_url = "apiUrl"
+    ref_audio_path = "refAudioPath"
+    prompt_lang = "promptLang"
+    target_lang = "targetLang"
+    max_queue_size = "maxQueueSize"
