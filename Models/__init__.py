@@ -1,5 +1,5 @@
 from .ResponseMessageDto import DanmakuResponseMessage, ResponseMessageDto
-from .Config import TTSClientConfig
+from .TTSClientModels import TTSClientConfig
 
 __all__ = [
     "DanmakuResponseMessage",
