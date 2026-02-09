@@ -40,13 +40,13 @@ class TTSClient(QObject):
             self.player.play()
 
             # 刚 play() 时状态是 Stopped，必须给它一点时间跳变到 Playing
-            # 我们先等待状态改变，或者等待一小段时间
+            # 等待状态改变，或者等待一小段时间
             retry_count = 0
             while self.player.playbackState() != QMediaPlayer.PlaybackState.PlayingState and retry_count < 10:
                 await asyncio.sleep(0.05)
                 retry_count += 1
 
-            # 现在它真的在播了，我们再进入阻塞循环
+            # 进入阻塞循环
             while self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
                 await asyncio.sleep(0.1)
         else:

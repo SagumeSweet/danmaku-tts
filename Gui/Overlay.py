@@ -9,7 +9,6 @@ from PySide6.QtCore import Qt, QPoint, Signal, Slot, QTimer
 from qasync import QEventLoop
 
 
-# --- [SettingsPopup 类保持不变] ---
 class SettingsPopup(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -45,7 +44,6 @@ class SettingsPopup(QFrame):
         return widget
 
 
-# --- [OverlayPanel 类：根据你的代码微调] ---
 class OverlayPanel(QWidget):
     new_danmu_signal = Signal(str, str)
 
@@ -110,7 +108,6 @@ class OverlayPanel(QWidget):
         self.btn_close = QPushButton();
         self.btn_close.setIcon(self.style().standardIcon(QStyle.SP_TitleBarCloseButton))
 
-
         for b in [self.btn_lock, self.btn_settings, self.btn_close]:
             b.setStyleSheet("background: transparent; color: white; border: none; font-size: 15px; width: 30px;")
             t_layout.addWidget(b)
@@ -134,8 +131,6 @@ class OverlayPanel(QWidget):
     def toggle_lock(self):
         self._is_locked = not self._is_locked
         self.btn_lock.setText("🔒" if self._is_locked else "🔓")
-        # 锁定后隐藏滚动条
-        self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff if self._is_locked else Qt.ScrollBarAsNeeded)
 
     def toggle_settings_panel(self):
         if self.settings_panel.isVisible():
@@ -171,7 +166,6 @@ class OverlayPanel(QWidget):
             bar = self.scroll.verticalScrollBar()
             QTimer.singleShot(50, lambda: bar.setValue(bar.maximum()))
 
-    # --- 鼠标事件省略（同前文逻辑） ---
     def get_resize_direction(self, pos):
         x, y = pos.x(), pos.y();
         w, h = self.width(), self.height();
@@ -212,10 +206,11 @@ class OverlayPanel(QWidget):
             if hasattr(self, 'drag_pos'): self.move(event.globalPosition().toPoint() - self.drag_pos)
 
     def mouseReleaseEvent(self, event):
-        self.resize_dir = None; self.setCursor(Qt.ArrowCursor)
+        self.resize_dir = None;
+        self.setCursor(Qt.ArrowCursor)
 
 
-# --- 3. 新增：主控界面 (MainConsole) ---
+# --- 主控界面 ---
 class MainConsole(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -232,7 +227,6 @@ class MainConsole(QMainWindow):
             QPushButton#ActionBtn:pressed { background-color: #FFA000; }
         """)
 
-        # 核心：持有弹幕面板引用
         self.panel = None
 
         self.init_ui()
@@ -260,11 +254,6 @@ class MainConsole(QMainWindow):
 
         layout.addStretch()
 
-        # 底部版权或提示
-        hint = QLabel("提示: 面板开启后可在右侧设置透明度")
-        hint.setStyleSheet("color: #555; font-size: 12px;")
-        layout.addWidget(hint)
-
     def handle_toggle_panel(self):
         if self.panel.isVisible():
             self.panel.hide()
@@ -274,9 +263,8 @@ class MainConsole(QMainWindow):
             self.toggle_btn.setText("隐藏弹幕面板")
 
     def recreate_panel(self):
-        """彻底销毁旧面板并创建一个全新的面板"""
+        """销毁旧面板并创建一个新的面板"""
 
-        # 1. 如果面板已存在，先销毁它
         if self.panel is not None:
             print(">>> 正在销毁旧面板...")
             # 关闭设置窗口（如果它开着的话）
@@ -288,7 +276,6 @@ class MainConsole(QMainWindow):
             self.panel = None
             self.toggle_btn.setText("开启弹幕面板")
 
-        # 2. 创建一个完全干净的新实例
         else:
             print(">>> 正在创建面板...")
             self.panel = OverlayPanel()
@@ -307,7 +294,7 @@ class MainConsole(QMainWindow):
         super().closeEvent(event)
 
 
-# --- 4. 运行逻辑 ---
+# --- 运行逻辑 ---
 async def simulate_danmu(console):
     """模拟外部弹幕涌入"""
     users = ["猫哥", "咸鱼", "大佬A", "System", "路人"]

@@ -110,29 +110,31 @@ async def rsocket_worker(websocket_uri, console, tts_client):
 
 
 def main(conf_path: str = r".\configTemple.json"):
-    # 1. 初始化日志和参数
+    # 初始化日志和参数
     logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+    # 加载配置
     with open(conf_path, "r", encoding="utf-8") as f:
         conf = json.load(f)
     rsocket_uri = conf[DefaultConfigName.rsocket_uri]
     task_ids = conf[DefaultConfigName.task_id]
+    tts_client_conf = conf[DefaultConfigName.ttl_client]
     subscribe_payload_json["data"]["taskIds"] = task_ids
 
-    # 2. 初始化 Qt + 异步事件循环
+    # 初始化 Qt + 异步事件循环
     app = QApplication(sys.argv)
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
 
-    # 3. 启动 GUI
+    # 启动 GUI
     console = MainConsole()
     console.show()
 
-    # 4. 启动后台任务
-    tts_client = TTSClient(conf[DefaultConfigName.ttl_client])
+    # 启动后台任务
+    tts_client = TTSClient(tts_client_conf)
     loop.create_task(tts_client.ai_tts_worker())  # 启动 TTS
     loop.create_task(rsocket_worker(rsocket_uri, console, tts_client))  # 启动弹幕监听
 
-    # 5. 进入循环
+    # 进入循环
     with loop:
         loop.run_forever()
 
