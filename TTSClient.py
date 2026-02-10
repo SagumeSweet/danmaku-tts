@@ -10,10 +10,10 @@ from Models import TTSClientConfig
 
 
 class TTSClient(QObject):
-    def __init__(self, config: TTSClientConfig):
+    def __init__(self, conf_dict: dict):
         super().__init__()
-        self.config: TTSClientConfig = config
-        self._tts_queue = asyncio.Queue()
+        self.config: TTSClientConfig = TTSClientConfig(conf_dict)
+        self.tts_queue = asyncio.Queue()
 
         # 初始化 Qt 播放器
         self.player = QMediaPlayer()
@@ -55,7 +55,7 @@ class TTSClient(QObject):
     async def ai_tts_worker(self):
         async with aiohttp.ClientSession() as session:
             while True:
-                text = await self._tts_queue.get()
+                text = await self.tts_queue.get()
                 try:
                     logging.info(f"[AI 合成中] {text}")
                     post_data = {
@@ -66,8 +66,7 @@ class TTSClient(QObject):
                         "prompt_lang": self.config.prompt_lang,
                         "text_split_method": "cut5",
                         "media_type": "wav",
-                        "streaming_mode": False,
-                        "speed_factor": 1.3
+                        "streaming_mode": False
                     }
                     # 发送 POST 请求并流式读取响应
                     async with session.post(self.config.api_url, json=post_data) as resp:
@@ -78,13 +77,13 @@ class TTSClient(QObject):
                 except Exception as e:
                     logging.error(f"[TTS 异常] {e}")
                 finally:
-                    self._tts_queue.task_done()
+                    self.tts_queue.task_done()
 
     def tts_queue_put(self, text: str):
-        if self._tts_queue.qsize() >= self.config.max_queue_size:
+        if self.tts_queue.qsize() >= self.config.max_queue_size:
             try:
-                self._tts_queue.get_nowait()
-                self._tts_queue.task_done()
+                self.tts_queue.get_nowait()
+                self.tts_queue.task_done()
             except asyncio.QueueEmpty:
                 pass
-        self._tts_queue.put_nowait(text)
+        self.tts_queue.put_nowait(text)
