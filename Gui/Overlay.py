@@ -1,16 +1,24 @@
+import asyncio
+
 from PySide6.QtCore import Qt, QPoint, Signal, Slot, QTimer
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
                                QLabel, QFrame, QScrollArea, QPushButton,
                                QSlider, QStyle, QCheckBox)
 
+from Clients import TTSClient, DanmakuClient
 from .DanmakuSettingsPopup import DanmakuSettingsPopup
 
 
 class OverlayPanel(QWidget):
     new_danmu_signal = Signal(str, str)
 
-    def __init__(self):
+    def __init__(self, tts_client: TTSClient, danmaku_client: DanmakuClient):
         super().__init__()
+        self._tts_client: TTSClient = tts_client
+        self._danmaku_client: DanmakuClient = danmaku_client
+        self._tts_client.start()
+
+        # GUI
         self._is_locked = False
         self._opacity = 0.8
         self._auto_scroll = True
@@ -21,7 +29,6 @@ class OverlayPanel(QWidget):
         self.init_window_configs()
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setWindowOpacity(1.0)
-
 
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
@@ -169,3 +176,9 @@ class OverlayPanel(QWidget):
     def mouseReleaseEvent(self, event):
         self.resize_dir = None
         self.setCursor(Qt.CursorShape.ArrowCursor)
+
+    # OverlayPanel 类内部
+    def closeEvent(self, event):
+        self._tts_client.player.stop()
+        self._tts_client.worker_close_task = asyncio.create_task(self._tts_client.stop_worker())
+        event.accept()

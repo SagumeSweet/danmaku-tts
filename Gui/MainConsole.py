@@ -1,18 +1,24 @@
 import asyncio
+import logging
 import random
 import sys
 
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel, QPushButton, QApplication
 from qasync import QEventLoop
 
+from Clients import TTSClient, DanmakuClient
+from .WeightManageCard import WeightsManagerCard
 from .Overlay import OverlayPanel
 
 
 class MainConsole(QMainWindow):
-    def __init__(self):
+    def __init__(self, tts_client: TTSClient, danmaku_client: DanmakuClient):
         super().__init__()
+        self._tts_client: TTSClient = tts_client
+        self._danmaku_client: DanmakuClient = danmaku_client
+
         self.setWindowTitle("弹幕控制台")
-        self.setFixedSize(400, 250)
+        self.setFixedSize(400, 500)
         self.setStyleSheet("""
             QMainWindow { background-color: #1E1E1E; }
             QLabel { color: white; font-family: "Microsoft YaHei"; }
@@ -45,6 +51,9 @@ class MainConsole(QMainWindow):
         self.toggle_btn.clicked.connect(self.recreate_panel)
         layout.addWidget(self.toggle_btn)
 
+        self.weights_manager = WeightsManagerCard(self._tts_client)
+        layout.addWidget(self.weights_manager)
+
         layout.addStretch()
 
     def handle_toggle_panel(self):
@@ -59,7 +68,7 @@ class MainConsole(QMainWindow):
         """销毁旧面板并创建一个新的面板"""
 
         if self.panel is not None:
-            print(">>> 正在销毁旧面板...")
+            logging.info("正在销毁旧面板...")
             # 关闭设置窗口（如果它开着的话）
             if hasattr(self.panel, 'settings_panel'):
                 self.panel.settings_panel.close()
@@ -70,8 +79,8 @@ class MainConsole(QMainWindow):
             self.toggle_btn.setText("开启弹幕面板")
 
         else:
-            print(">>> 正在创建面板...")
-            self.panel = OverlayPanel()
+            logging.info("正在创建面板...")
+            self.panel = OverlayPanel(self._tts_client, self._danmaku_client)
 
             # 必须重新连接信号，否则新面板接收不到数据
             self.panel.new_danmu_signal.connect(self.panel.add_danmu)

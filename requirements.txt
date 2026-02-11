@@ -4,3 +4,4 @@ qasync~=0.28.0
 logging~=0.4.9.6
 aiohttp~=3.13.3
 rsocket~=0.4.20
+yarl
