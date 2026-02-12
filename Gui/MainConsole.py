@@ -1,10 +1,6 @@
-import asyncio
 import logging
-import random
-import sys
 
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel, QPushButton, QApplication
-from qasync import QEventLoop
+from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel, QPushButton
 
 from Clients import TTSClient, DanmakuClient
 from .WeightManageCard import WeightsManagerCard
@@ -94,36 +90,3 @@ class MainConsole(QMainWindow):
         if self.panel:
             self.panel.close()
         super().closeEvent(event)
-
-
-# --- 运行逻辑 ---
-async def simulate_danmu(console):
-    """模拟外部弹幕涌入"""
-    users = ["猫哥", "咸鱼", "大佬A", "System", "路人"]
-    msgs = ["66666", "这也太强了吧", "测试弹幕占位符", "老板大气！", "欢迎来到直播间"]
-    while True:
-        await asyncio.sleep(random.uniform(0.5, 2.0))
-        try:
-            if console.panel.isVisible():
-                console.panel.new_danmu_signal.emit(random.choice(users), random.choice(msgs))
-        except AttributeError:
-            pass
-
-
-def main():
-    app = QApplication(sys.argv)
-    loop = QEventLoop(app)
-    asyncio.set_event_loop(loop)
-
-    console = MainConsole()
-    console.show()
-
-    # 将任务绑定到控制台持有的面板上
-    loop.create_task(simulate_danmu(console))
-
-    with loop:
-        loop.run_forever()
-
-
-if __name__ == "__main__":
-    main()

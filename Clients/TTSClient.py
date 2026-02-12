@@ -1,8 +1,8 @@
 import asyncio
 import logging
+import re
 from collections import defaultdict
 from contextlib import suppress
-from pathlib import Path
 from typing import override
 
 import aiohttp
@@ -35,6 +35,11 @@ class TTSClient(QObject):
         self._q_data = None
         self._q_buffer = None
 
+    @property
+    def not_test(self) -> 'TTSClient':
+        self._is_test = False
+        return self
+
     async def _post_tts(self, target_url: URL, post_data: dict):
         async with self._session.post(target_url, json=post_data) as resp:
             if resp.status == 200:
@@ -46,7 +51,6 @@ class TTSClient(QObject):
                 logging.error(f"[TTS]服务返回错误 [{resp.status}]: {err_text}")
                 # 如果后端报错，等 1 秒再继续，避免日志刷屏
                 await asyncio.sleep(1)
-
 
     def start(self):
         logging.info("[TTS] 启动 TTS 工作线程")
@@ -117,6 +121,16 @@ class TTSClient(QObject):
         pass
 
 
+def get_name(full_name: str) -> str:
+    match = re.search(r".*(?=-)", full_name)
+    name = ""
+    if match:
+        name += match.group()
+    else:
+        raise AIClientException("模型名提取失败")
+    return name
+
+
 class AITTSClient(TTSClient):
     def __init__(self, conf_dict: dict):
         super().__init__(conf_dict)
@@ -127,7 +141,6 @@ class AITTSClient(TTSClient):
     @property
     def weights_names(self) -> list[str]:
         return list(self._weights.keys())
-
 
     @override
     async def tts_worker(self):
@@ -154,8 +167,10 @@ class AITTSClient(TTSClient):
                 self.tts_queue.task_done()
 
     def _find_ref_audio(self, name: str) -> str:
-        audio_root = Path(self.ai_config.ref_audio_root)
-        audio = list(audio_root.glob(f"{name}.wav"))[0]
+        audio_root = self.ai_config.ref_audio_root
+        audio_paths = list(audio_root.glob(f"{name}"))
+        audio_path = audio_paths[0]
+        audio = list((audio_path / "reference_audios" / "中文" / "emotions").iterdir())[0]
         return str(audio)
 
     async def switch_weights(self, name: str) -> bool:
@@ -178,30 +193,35 @@ class AITTSClient(TTSClient):
         logging.info("[TTS][AI] 切换模型文件: " + path)
         if self._is_test:
             return True
+        self._is_test = True
         params = {"weights_path": path}
         target_url = (URL(self.ai_config.api_url) / endpoint).with_query(params)
         async with self._session.get(target_url) as resp:
             if resp.status == 200:
-                text = await resp.text()
-                if text == "success":
+                data = await resp.json()
+                if data.get("message") == "success":
                     return True
+            else:
+                data = await resp.json()
+                logging.error(AIClientException(data["message"]))
             return False
 
     async def scan_weights(self):
         self._weights.clear()
         if not self._session or self._session.closed:
             self._session = aiohttp.ClientSession()
-        root = Path(self.ai_config.gpt_sovits_root)
-        gpt_root = root / f"GPT{self.ai_config.version}"
-        sovits_root = root / f"SoVITS{self.ai_config.version}"
+        root = self.ai_config.gpt_sovits_root
+        gpt_root = root / f"GPT_weights_{self.ai_config.version}" if self.ai_config.version != "v1" else "GPT_weights"
+        sovits_root = root / f"SoVITS_weights_{self.ai_config.version}" if self.ai_config.version != "v1" else "SoVITS_weights"
         try:
             for gpt_file_path in gpt_root.glob("*.ckpt"):
-                sovits_file_path = sovits_root / f"{gpt_file_path.stem}.pth"
+                name: str = get_name(gpt_file_path.stem)
+                sovits_file_path = list(sovits_root.glob(f"{name}*.pth"))[0]
                 if sovits_file_path.exists():
-                    self._weights[gpt_file_path.stem] = AIWeightsPaths(
+                    self._weights[name] = AIWeightsPaths(
                         gpt_path=str(gpt_file_path),
                         sovits_path=str(sovits_file_path),
-                        ref_audio_path=self._find_ref_audio(gpt_file_path.stem)
+                        ref_audio_path=self._find_ref_audio(name)
                     )
             if not self._weights:
                 raise AIClientException("未找到任何有效的 GPT-SoVits 模型文件，请检查配置路径是否正确")

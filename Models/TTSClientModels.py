@@ -1,4 +1,4 @@
-from pathlib import PurePath
+from pathlib import PurePath, Path
 
 from Enums import DefaultConfigName
 
@@ -17,6 +17,7 @@ class TTSClientConfig:
             raise ValueError()
         self._max_queue_size = max_queue_size
 
+
 class AIClientConfig:
     def __init__(self, tts_client_config: dict):
         self._api_url: str = tts_client_config[DefaultConfigName.ai][DefaultConfigName.api_url]
@@ -32,8 +33,8 @@ class AIClientConfig:
         return self._api_url
 
     @property
-    def ref_audio_root(self) -> str:
-        return self._ref_audio_root
+    def ref_audio_root(self) -> Path:
+        return Path(self._ref_audio_root) / self._version
 
     @property
     def prompt_lang(self) -> str:
@@ -61,8 +62,8 @@ class AIClientConfig:
         return self._target_lang
 
     @property
-    def gpt_sovits_root(self) -> str:
-        return self._gpt_sovits_root
+    def gpt_sovits_root(self) -> Path:
+        return Path(self._gpt_sovits_root)
 
     @ref_audio_path.setter
     def ref_audio_path(self, ref_audio_path: str):
@@ -76,7 +77,7 @@ class AIClientConfig:
 
     @version.setter
     def version(self, version: str):
-        if version not in ["v2", "v3", "v4"]:
+        if version not in ["v1", "v2", "v2Pro", "v2ProPlus", "v3", "v4"]:
             raise ValueError()
         self._version = version
 
@@ -92,6 +93,7 @@ class AIClientConfig:
             "streaming_mode": False
         }
         return req
+
 
 class AIWeightsPaths:
     def __init__(self, gpt_path: str, sovits_path: str, ref_audio_path: str):
