@@ -230,6 +230,6 @@ class AITTSClient(TTSClient):
                 if not await self.switch_weights(default_weights):
                     raise AIClientException(f"默认模型设置失败: {default_weights}")
         except Exception as e:
-            logging.error(f"[初始化AI TTS客户端]{e}")
-            self._client_close_task = asyncio.create_task(self.close())
-            raise e
+            ex = AIClientException(e)
+            logging.error(ex)
+            raise ex
