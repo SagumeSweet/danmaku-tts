@@ -2,34 +2,32 @@ import asyncio
 import json
 import logging
 import sys
-
-import aiohttp
 from asyncio import Event
 from contextlib import asynccontextmanager
 from datetime import timedelta
 
+import aiohttp
+from PySide6.QtWidgets import QApplication
+from qasync import QEventLoop
+from reactivestreams.subscriber import Subscriber
+from reactivestreams.subscription import Subscription
 from rsocket.helpers import single_transport_provider
 from rsocket.payload import Payload
 from rsocket.rsocket_client import RSocketClient
 from rsocket.streams.stream_from_async_generator import StreamFromAsyncGenerator
 from rsocket.transports.aiohttp_websocket import TransportAioHttpClient
-from reactivestreams.subscriber import Subscriber
-from reactivestreams.subscription import Subscription
 
-from PySide6.QtWidgets import QApplication
-from qasync import QEventLoop
-
+from Clients import AITTSClient, DanmakuClient
 from Enums import DefaultConfigName
 from Gui import MainConsole
 from Models import ResponseMessageDto
-from TTSClient import TTSClient
 
 # 弹幕订阅 Payload
 subscribe_payload_json = {"data": {"taskIds": [], "cmd": "SUBSCRIBE"}}
 
 
 class ChannelSubscriber(Subscriber):
-    def __init__(self, wait_for_responder_complete: Event, tts_client: TTSClient, console=None) -> None:
+    def __init__(self, wait_for_responder_complete: Event, tts_client: AITTSClient, console=None) -> None:
         super().__init__()
         self.subscription = None
         self._wait_for_responder_complete = wait_for_responder_complete
@@ -51,6 +49,8 @@ class ChannelSubscriber(Subscriber):
         nick = msg.username
         content = msg.content
 
+        logging.info(f"[收到弹幕] {nick}: {content}")
+
         # 发送到弹幕面板
         if self._console and self._console.panel:
             self._console.panel.new_danmu_signal.emit(nick, content)
@@ -60,8 +60,6 @@ class ChannelSubscriber(Subscriber):
         speak_text = f"{nick}说，{clean_txt}"
 
         self._tts_client.tts_queue_put(speak_text)
-
-        logging.info(f"[收到弹幕] {nick}: {content}")
 
         if is_complete:
             self._wait_for_responder_complete.set()
@@ -110,29 +108,26 @@ async def rsocket_worker(websocket_uri, console, tts_client):
 
 
 def main(conf_path: str = r".\configTemple.json"):
-    # 1. 初始化日志和参数
+    # 初始化日志
     logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
     with open(conf_path, "r", encoding="utf-8") as f:
         conf = json.load(f)
     rsocket_uri = conf[DefaultConfigName.rsocket_uri]
-    task_ids = conf[DefaultConfigName.task_id]
-    subscribe_payload_json["data"]["taskIds"] = task_ids
+    subscribe_payload_json["data"]["taskIds"] = conf[DefaultConfigName.task_id]
 
-    # 2. 初始化 Qt + 异步事件循环
+    # 初始化客户端
+    tts_client = AITTSClient(conf[DefaultConfigName.ttl_client])
+    danmaku_client = DanmakuClient()
+
+    # 初始化 Qt 应用
     app = QApplication(sys.argv)
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
 
-    # 3. 启动 GUI
-    console = MainConsole()
+    # 启动 GUI
+    console = MainConsole(tts_client, danmaku_client)
     console.show()
-
-    # 4. 启动后台任务
-    tts_client = TTSClient(conf[DefaultConfigName.ttl_client])
-    loop.create_task(tts_client.ai_tts_worker())  # 启动 TTS
-    loop.create_task(rsocket_worker(rsocket_uri, console, tts_client))  # 启动弹幕监听
-
-    # 5. 进入循环
+    loop.create_task(rsocket_worker(rsocket_uri, console, tts_client))
     with loop:
         loop.run_forever()
 
