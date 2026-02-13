@@ -1,9 +1,11 @@
 import asyncio
+from typing import Optional
 
 from PySide6.QtCore import Qt, QPoint, Signal, Slot, QTimer
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
                                QLabel, QFrame, QScrollArea, QPushButton,
                                QSlider, QStyle, QCheckBox)
+from qasync import asyncSlot
 
 from Clients import TTSClient, DanmakuClient
 from .DanmakuSettingsPopup import DanmakuSettingsPopup
@@ -11,12 +13,12 @@ from .DanmakuSettingsPopup import DanmakuSettingsPopup
 
 class OverlayPanel(QWidget):
     new_danmu_signal = Signal(str, str)
+    tts_client_signal = Signal(TTSClient)
 
-    def __init__(self, tts_client: TTSClient, danmaku_client: DanmakuClient):
+    def __init__(self):
         super().__init__()
-        self._tts_client: TTSClient = tts_client
-        self._danmaku_client: DanmakuClient = danmaku_client
-        self._tts_client.start()
+        self._tts_client: Optional[TTSClient] = None
+        self._danmaku_client: DanmakuClient = DanmakuClient()
 
         # GUI
         self._is_locked = False
@@ -177,8 +179,34 @@ class OverlayPanel(QWidget):
         self.resize_dir = None
         self.setCursor(Qt.CursorShape.ArrowCursor)
 
-    # OverlayPanel 类内部
+    async def stop_worker(self):
+        if self._tts_client:
+            self._tts_client.player.stop()
+            await self._tts_client.stop_worker()
+
+
+    def on_hide(self):
+        self._is_locked = False
+        self.hide()
+        if self._tts_client:
+            self._tts_client.worker_close_task = asyncio.create_task(self.stop_worker())
+
+    def on_show(self):
+        self.show()
+        if self._tts_client:
+            self._tts_client.start()
+
+    @asyncSlot(TTSClient)
+    async def set_tts_client(self, tts_client: TTSClient):
+        if self._tts_client is not None:
+            old_tts_client = self._tts_client
+            await old_tts_client.close()
+            old_tts_client.deleteLater()
+        self._tts_client = tts_client
+        if self.isVisible():
+            self._tts_client.start()
+
     def closeEvent(self, event):
-        self._tts_client.player.stop()
-        self._tts_client.worker_close_task = asyncio.create_task(self._tts_client.stop_worker())
+        if self._tts_client:
+            self.on_hide()
         event.accept()

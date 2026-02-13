@@ -17,7 +17,6 @@ from rsocket.rsocket_client import RSocketClient
 from rsocket.streams.stream_from_async_generator import StreamFromAsyncGenerator
 from rsocket.transports.aiohttp_websocket import TransportAioHttpClient
 
-from Clients import AITTSClient, DanmakuClient
 from Enums import DefaultConfigName
 from Gui import MainConsole
 from Models import ResponseMessageDto
@@ -27,7 +26,7 @@ subscribe_payload_json = {"data": {"taskIds": [], "cmd": "SUBSCRIBE"}}
 
 
 class ChannelSubscriber(Subscriber):
-    def __init__(self, wait_for_responder_complete: Event, tts_client: AITTSClient, console=None) -> None:
+    def __init__(self, wait_for_responder_complete: Event, tts_client, console=None) -> None:
         super().__init__()
         self.subscription = None
         self._wait_for_responder_complete = wait_for_responder_complete
@@ -59,8 +58,8 @@ class ChannelSubscriber(Subscriber):
         clean_txt = content[:40].replace('[', '').replace(']', '')
         speak_text = f"{nick}说，{clean_txt}"
 
-        self._tts_client.tts_queue_put(speak_text)
-
+        # self._tts_client.tts_queue_put(speak_text)
+        self._tts_client.put_nowait(speak_text)
         if is_complete:
             self._wait_for_responder_complete.set()
 
@@ -112,12 +111,11 @@ def main(conf_path: str = r".\configTemple.json"):
     logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
     with open(conf_path, "r", encoding="utf-8") as f:
         conf = json.load(f)
-    rsocket_uri = conf[DefaultConfigName.rsocket_uri]
-    subscribe_payload_json["data"]["taskIds"] = conf[DefaultConfigName.task_id]
+    rsocket_uri = conf[DefaultConfigName.danmaku_client][DefaultConfigName.rsocket_ws_url]
+    subscribe_payload_json["data"]["taskIds"] = conf[DefaultConfigName.danmaku_client][DefaultConfigName.task_id]
 
-    # 初始化客户端
-    tts_client = AITTSClient(conf[DefaultConfigName.ttl_client])
-    danmaku_client = DanmakuClient()
+    # tts队列
+    queue = asyncio.Queue()
 
     # 初始化 Qt 应用
     app = QApplication(sys.argv)
@@ -125,9 +123,9 @@ def main(conf_path: str = r".\configTemple.json"):
     asyncio.set_event_loop(loop)
 
     # 启动 GUI
-    console = MainConsole(tts_client, danmaku_client)
+    console = MainConsole(conf, queue)
     console.show()
-    loop.create_task(rsocket_worker(rsocket_uri, console, tts_client))
+    loop.create_task(rsocket_worker(rsocket_uri, console, queue))
     with loop:
         loop.run_forever()
 

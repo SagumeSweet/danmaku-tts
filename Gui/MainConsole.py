@@ -1,20 +1,17 @@
-import logging
-
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel, QPushButton
 
-from Clients import TTSClient, DanmakuClient
-from .WeightManageCard import WeightsManagerCard
+from Models import Config
 from .Overlay import OverlayPanel
+from .TTSEngineSwitcher import TTSEngineSwitcher
 
 
 class MainConsole(QMainWindow):
-    def __init__(self, tts_client: TTSClient, danmaku_client: DanmakuClient):
+    def __init__(self, config: dict, queue):
         super().__init__()
-        self._tts_client: TTSClient = tts_client
-        self._danmaku_client: DanmakuClient = danmaku_client
+        self._config: Config = Config(config)
 
         self.setWindowTitle("弹幕控制台")
-        self.setFixedSize(400, 500)
+        self.setMinimumSize(400, 600)
         self.setStyleSheet("""
             QMainWindow { background-color: #1E1E1E; }
             QLabel { color: white; font-family: "Microsoft YaHei"; }
@@ -26,7 +23,9 @@ class MainConsole(QMainWindow):
             QPushButton#ActionBtn:pressed { background-color: #FFA000; }
         """)
 
-        self.panel = None
+        self.panel = OverlayPanel()
+        self.panel.new_danmu_signal.connect(self.panel.add_danmu)
+        self.panel.btn_close.clicked.connect(self.recreate_panel)
         central = QWidget()
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
@@ -47,43 +46,22 @@ class MainConsole(QMainWindow):
         self.toggle_btn.clicked.connect(self.recreate_panel)
         layout.addWidget(self.toggle_btn)
 
-        self.weights_manager = WeightsManagerCard(self._tts_client)
-        layout.addWidget(self.weights_manager)
+        self.engine_switcher = TTSEngineSwitcher(self._config.tts_client, self.panel, queue)
+        layout.addWidget(self.engine_switcher)
 
         layout.addStretch()
-
-    def handle_toggle_panel(self):
-        if self.panel.isVisible():
-            self.panel.hide()
-            self.toggle_btn.setText("开启弹幕面板")
-        else:
-            self.panel.show()
-            self.toggle_btn.setText("隐藏弹幕面板")
 
     def recreate_panel(self):
         """销毁旧面板并创建一个新的面板"""
 
-        if self.panel is not None:
-            logging.info("正在销毁旧面板...")
-            # 关闭设置窗口（如果它开着的话）
-            if hasattr(self.panel, 'settings_panel'):
-                self.panel.settings_panel.close()
-
-            self.panel.close()
-            self.panel.deleteLater()  # 确保内存释放
-            self.panel = None
-            self.toggle_btn.setText("开启弹幕面板")
-
+        if self.panel is None:
+            self.toggle_btn.setText("隐藏弹幕面板")
+        elif self.panel.isVisible():
+            self.panel.on_hide()
+            self.toggle_btn.setText("显示弹幕面板")
         else:
-            logging.info("正在创建面板...")
-            self.panel = OverlayPanel(self._tts_client, self._danmaku_client)
-
-            # 必须重新连接信号，否则新面板接收不到数据
-            self.panel.new_danmu_signal.connect(self.panel.add_danmu)
-            self.panel.btn_close.clicked.connect(self.recreate_panel)
-
-            self.panel.show()
-            self.toggle_btn.setText("关闭当前面板")
+            self.panel.on_show()
+            self.toggle_btn.setText("隐藏弹幕面板")
 
     def closeEvent(self, event):
         """重写关闭事件，确保子窗口一起关闭"""

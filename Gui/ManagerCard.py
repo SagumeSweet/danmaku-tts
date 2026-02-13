@@ -5,14 +5,28 @@ from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
 from qasync import asyncSlot
 import logging
 
-from Clients import AITTSClient
-from Exceptions import AIClientException
+from Clients import AITTSClient, TTSClient
+from Clients.TTSClient import EdgeTTSClient
+from Exceptions import ManagerCardException
 
 
-class WeightsManagerCard(QGroupBox):
-    def __init__(self, ai_tts_client):
-        super().__init__("模型权重管理")
-        self._ai_tts_client: AITTSClient = ai_tts_client
+class ManagerCard(QGroupBox):
+    def __init__(self, title, client):
+        super().__init__(title)
+        self._tts_client = client
+
+    @property
+    def tts_client(self) -> TTSClient:
+        return self._tts_client
+
+    async def prepare_to_close(self):
+        await self._tts_client.close()
+
+
+
+class WeightsManagerCard(ManagerCard):
+    def __init__(self, ai_tts_client: AITTSClient):
+        super().__init__("模型权重管理", ai_tts_client)
 
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
@@ -42,7 +56,7 @@ class WeightsManagerCard(QGroupBox):
         self.version_combo = QComboBox()
         self.version_combo.addItems(["v1", "v2", "v2Pro", "v2ProPlus", "v3", "v4"])
         # 默认同步 client 的初始版本
-        self.version_combo.setCurrentText(self._ai_tts_client.ai_config.version)
+        self.version_combo.setCurrentText(self._tts_client.ai_config.version)
         self.version_combo.currentTextChanged.connect(self.on_version_changed)
 
         version_layout.addWidget(QLabel("架构版本:"))
@@ -67,7 +81,7 @@ class WeightsManagerCard(QGroupBox):
         try:
             await work_func()
         except Exception as e:
-            ex = AIClientException(f"{status_name}异常: {e}")
+            ex = ManagerCardException(f"{status_name}异常: {e}")
             logging.error(ex)
             self.lbl_status_title.setText(f"当前状态: <b style='color: #F44336;'>{status_name}异常</b>")
         finally:
@@ -84,12 +98,12 @@ class WeightsManagerCard(QGroupBox):
         self.name_combo.clear()
 
         # 更新配置中的版本号
-        self._ai_tts_client.ai_config.version = version
+        self._tts_client.ai_config.version = version
 
         async def refresh():
             # 执行扫描
-            await self._ai_tts_client.scan_weights()
-            names = self._ai_tts_client.weights_names
+            await self._tts_client.scan_weights()
+            names = self._tts_client.weights_names
             if names:
                 self.name_combo.addItems(names)
                 self.name_combo.setCurrentText(names[0])
@@ -112,14 +126,26 @@ class WeightsManagerCard(QGroupBox):
 
         async def switch_weights():
             # --- 2. 执行切换逻辑 ---
-            success = await self._ai_tts_client.not_test.switch_weights(weights_name)
+            success = await self._tts_client.not_test.switch_weights(weights_name)
             if success:
                 # --- 3. 更新成功后的状态文本 ---
                 self.lbl_status_title.setText("当前状态: <b style='color: #4CAF50;'>已就绪</b>")
                 self.lbl_status_detail.setText(f"版本: {version} | 角色: {weights_name}")
-                logging.info(f"[TTS][AI] 权重切换完成: {weights_name}")
             else:
                 self.lbl_status_title.setText("当前状态: <b style='color: #F44336;'>切换失败</b>")
                 self.lbl_status_detail.setText(f"后端拒绝了角色: {weights_name} 的请求")
 
         await self._change_status(switch_weights, "切换模型")
+
+class EdgeTTSManagerCard(ManagerCard):
+    def __init__(self, edge_tts_client: EdgeTTSClient):
+        super().__init__("Edge-TTS 管理", edge_tts_client)
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel("Edge-TTS 配置面板 (待开发)"))
+
+
+class OtherTTSManagerCard(ManagerCard):
+    def __init__(self, client: TTSClient):
+        super().__init__("其他 TTS", client)
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel("敬请期待..."))

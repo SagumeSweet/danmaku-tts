@@ -1,5 +1,6 @@
 from .ResponseMessageDto import DanmakuResponseMessage, ResponseMessageDto
 from .TTSClientModels import TTSClientConfig, AIClientConfig, AIWeightsPaths
+from .Config import Config
 
 __all__ = [
     "DanmakuResponseMessage",
@@ -7,4 +8,5 @@ __all__ = [
     "TTSClientConfig",
     "AIClientConfig",
     "AIWeightsPaths",
+    "Config",
 ]
