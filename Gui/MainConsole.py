@@ -1,14 +1,16 @@
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel, QPushButton
 
+from Clients import DanmakuClient
 from Models import Config
 from .Overlay import OverlayPanel
 from .TTSEngineSwitcher import TTSEngineSwitcher
 
 
 class MainConsole(QMainWindow):
-    def __init__(self, config: dict, queue):
+    def __init__(self, config: dict):
         super().__init__()
         self._config: Config = Config(config)
+
 
         self.setWindowTitle("弹幕控制台")
         self.setMinimumSize(400, 600)
@@ -22,8 +24,8 @@ class MainConsole(QMainWindow):
             QPushButton#ActionBtn:hover { background-color: #FFD54F; }
             QPushButton#ActionBtn:pressed { background-color: #FFA000; }
         """)
-
-        self.panel = OverlayPanel()
+        self._danmaku_client = DanmakuClient(self._config.danmaku_client)
+        self.panel = OverlayPanel(self._danmaku_client)
         self.panel.new_danmu_signal.connect(self.panel.add_danmu)
         self.panel.btn_close.clicked.connect(self.recreate_panel)
         central = QWidget()
@@ -36,9 +38,10 @@ class MainConsole(QMainWindow):
         title.setStyleSheet("font-size: 24px; font-weight: bold; color: #FFCA28;")
         layout.addWidget(title)
 
-        status_lbl = QLabel("状态: 运行中")
-        status_lbl.setStyleSheet("color: #888; margin-bottom: 20px;")
-        layout.addWidget(status_lbl)
+        self._status_lbl = QLabel("状态: 连接中")
+        self._status_lbl.setStyleSheet("color: #888; margin-bottom: 20px;")
+        self._danmaku_client.status_changed.connect(self.update_status_text)
+        layout.addWidget(self._status_lbl)
 
         # 弹幕面板开关
         self.toggle_btn = QPushButton("开启弹幕面板")
@@ -46,10 +49,19 @@ class MainConsole(QMainWindow):
         self.toggle_btn.clicked.connect(self.recreate_panel)
         layout.addWidget(self.toggle_btn)
 
-        self.engine_switcher = TTSEngineSwitcher(self._config.tts_client, self.panel, queue)
+        self.engine_switcher = TTSEngineSwitcher(self._config.tts_client, self.panel)
         layout.addWidget(self.engine_switcher)
 
         layout.addStretch()
+
+    def update_status_text(self, status_msg: str):
+        self._status_lbl.setText(f"状态: {status_msg}")
+        if "连接异常" in status_msg:
+            self._status_lbl.setStyleSheet("color: #FF5252; font-weight: bold;")  # 红色
+        elif "已连接" in status_msg:
+            self._status_lbl.setStyleSheet("color: #4CAF50; font-weight: bold;")  # 绿色
+        else:
+            self._status_lbl.setStyleSheet("color: #888;")  # 默认灰色
 
     def recreate_panel(self):
         """销毁旧面板并创建一个新的面板"""

@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
 from qasync import asyncSlot
 
 from Clients import TTSClient, DanmakuClient
+from Models import ResponseMessageDto
 from .DanmakuSettingsPopup import DanmakuSettingsPopup
 
 
@@ -15,10 +16,12 @@ class OverlayPanel(QWidget):
     new_danmu_signal = Signal(str, str)
     tts_client_signal = Signal(TTSClient)
 
-    def __init__(self):
+    def __init__(self, danmaku_client: DanmakuClient):
         super().__init__()
         self._tts_client: Optional[TTSClient] = None
-        self._danmaku_client: DanmakuClient = DanmakuClient()
+        self._danmaku_client: DanmakuClient = danmaku_client
+        self._danmaku_client.danmu_received.connect(self.add_danmu)
+        self._danmaku_task = None
 
         # GUI
         self._is_locked = False
@@ -122,8 +125,15 @@ class OverlayPanel(QWidget):
     def on_scroll_toggle(self, state):
         self._auto_scroll = (state == Qt.CheckState.Checked.value)
 
-    @Slot(str, str)
-    def add_danmu(self, nick, content):
+    @Slot(ResponseMessageDto)
+    def add_danmu(self, res_dto: ResponseMessageDto):
+        msg = res_dto.msg
+        nick = msg.username
+        content = msg.content
+        if self._tts_client:
+            text = f"{nick}说:{content[:125].replace('[', '').replace(']', '')}"
+            self._tts_client.tts_queue_put(text)
+
         text_html = f"<b style='color: #FFCA28; text-shadow: 1px 1px 2px black;'>{nick}:</b> <span style='color: white; text-shadow: 1px 1px 2px black;'>{content}</span>"
         lbl = QLabel(text_html)
         lbl.setStyleSheet("background: transparent; padding: 2px; font-size: 14px;")
@@ -184,14 +194,15 @@ class OverlayPanel(QWidget):
             self._tts_client.player.stop()
             await self._tts_client.stop_worker()
 
-
     def on_hide(self):
         self._is_locked = False
         self.hide()
+        self._danmaku_task = asyncio.create_task(self._danmaku_client.stop())
         if self._tts_client:
             self._tts_client.worker_close_task = asyncio.create_task(self.stop_worker())
 
     def on_show(self):
+        self._danmaku_task = asyncio.create_task(self._danmaku_client.start())
         self.show()
         if self._tts_client:
             self._tts_client.start()

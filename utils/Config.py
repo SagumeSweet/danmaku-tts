@@ -9,7 +9,7 @@ class ConfigGenerator:
         default_config = {
             DefaultConfigName.danmaku_client: {
                 DefaultConfigName.rsocket_ws_url:"ws://localhost:9000",
-                DefaultConfigName.task_id: [
+                DefaultConfigName.task_ids: [
                     "id"
                 ],
             },

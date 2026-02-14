@@ -11,14 +11,12 @@ from .ManagerCard import ManagerCard
 
 
 class TTSEngineSwitcher(QWidget):
-    def __init__(self, config: dict, danmaku_panel: OverlayPanel, queue):
+    def __init__(self, config: dict, danmaku_panel: OverlayPanel):
         super().__init__()
         self._config = config  # 这里的 client 应该是总控
         self.current_engine_ui: Optional[ManagerCard] = None
         self._danmaku_panel = danmaku_panel
         self._danmaku_panel.tts_client_signal.connect(self._danmaku_panel.set_tts_client)
-
-        self._queue = queue
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -74,15 +72,15 @@ class TTSEngineSwitcher(QWidget):
         try:
             if index == 0:
                 from .ManagerCard import WeightsManagerCard
-                self.current_engine_ui = WeightsManagerCard(AITTSClient(self._config, self._queue))
+                self.current_engine_ui = WeightsManagerCard(AITTSClient(self._config))
 
             elif index == 1:
                 from .ManagerCard import EdgeTTSManagerCard
-                self.current_engine_ui = EdgeTTSManagerCard(EdgeTTSClient(self._config, self._queue))
+                self.current_engine_ui = EdgeTTSManagerCard(EdgeTTSClient(self._config))
 
             else:
                 from .ManagerCard import OtherTTSManagerCard
-                self.current_engine_ui = OtherTTSManagerCard(TTSClient(self._config, self._queue))
+                self.current_engine_ui = OtherTTSManagerCard(TTSClient(self._config))
 
             # --- 挂载到容器 ---
             self.container.addWidget(self.current_engine_ui)
