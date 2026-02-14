@@ -168,9 +168,20 @@ class AITTSClient(TTSClient):
 
     def _find_ref_audio(self, name: str) -> str:
         audio_root = self.ai_config.ref_audio_root
-        audio_paths = list(audio_root.glob(f"{name}"))
-        audio_path = audio_paths[0]
-        audio = list((audio_path / "reference_audios" / "中文" / "emotions").iterdir())[0]
+        audio_path = None
+        for path in audio_root.glob(f"{name}"):
+            logging.info(f"[TTS][AI] 搜索{path.stem}的示例音频")
+            audio_path = path / "reference_audios" / "中文" / "emotions"
+            break
+        if not audio_path or not audio_path.exists():
+            raise AIClientException(f"未找到模型 {name} 的参考音频文件夹")
+        audio = None
+        for path in audio_path.glob("*.wav"):
+            logging.info(f"[TTS][AI] 找到模型 {name} 的示例音频: {path.name}")
+            audio = path
+            break
+        if not audio or not audio.exists():
+            raise AIClientException(f"未找到模型 {name} 的参考音频文件")
         return str(audio)
 
     async def switch_weights(self, name: str) -> bool:
@@ -206,6 +217,28 @@ class AITTSClient(TTSClient):
                 logging.error(AIClientException(data["message"]))
             return False
 
+    def _search_gpt_weights(self, gpt_root, sovits_root):
+        for gpt_file_path in gpt_root.glob("*.ckpt"):
+            name: str = get_name(gpt_file_path.stem)
+            sovits_file_path = None
+            logging.info(f"[TTS][AI] 找到模型文件: {gpt_file_path.name}，正在寻找对应的 SoVits 权重文件...")
+            for path in sovits_root.glob(f"{name}*.pth"):
+                logging.info(f"[TTS][AI] 找到模型文件: {gpt_file_path.name} 和 {path.name}")
+                sovits_file_path = path
+            if sovits_file_path is not None and sovits_file_path.exists():
+                try:
+                    self._weights[name] = AIWeightsPaths(
+                        gpt_path=str(gpt_file_path),
+                        sovits_path=str(sovits_file_path),
+                        ref_audio_path=self._find_ref_audio(name)
+                    )
+                except Exception as e:
+                    logging.error(f"模型 {name} 的不存在示例语音，已跳过: {e}")
+                    continue
+            else:
+                logging.warning(f"未找到与 {gpt_file_path.name} 对应的 SoVits 权重文件，已跳过")
+
+
     async def scan_weights(self):
         self._weights.clear()
         if not self._session or self._session.closed:
@@ -214,15 +247,7 @@ class AITTSClient(TTSClient):
         gpt_root = root / f"GPT_weights_{self.ai_config.version}" if self.ai_config.version != "v1" else "GPT_weights"
         sovits_root = root / f"SoVITS_weights_{self.ai_config.version}" if self.ai_config.version != "v1" else "SoVITS_weights"
         try:
-            for gpt_file_path in gpt_root.glob("*.ckpt"):
-                name: str = get_name(gpt_file_path.stem)
-                sovits_file_path = list(sovits_root.glob(f"{name}*.pth"))[0]
-                if sovits_file_path.exists():
-                    self._weights[name] = AIWeightsPaths(
-                        gpt_path=str(gpt_file_path),
-                        sovits_path=str(sovits_file_path),
-                        ref_audio_path=self._find_ref_audio(name)
-                    )
+            self._search_gpt_weights(gpt_root, sovits_root)
             if not self._weights:
                 raise AIClientException("未找到任何有效的 GPT-SoVits 模型文件，请检查配置路径是否正确")
             else:
@@ -230,6 +255,6 @@ class AITTSClient(TTSClient):
                 if not await self.switch_weights(default_weights):
                     raise AIClientException(f"默认模型设置失败: {default_weights}")
         except Exception as e:
-            logging.error(f"[初始化AI TTS客户端]{e}")
-            self._client_close_task = asyncio.create_task(self.close())
-            raise e
+            ex = AIClientException(f"扫描模型文件失败: {e}")
+            logging.error(ex)
+            raise ex
