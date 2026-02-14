@@ -2,8 +2,9 @@ from enum import StrEnum
 
 
 class DefaultConfigName(StrEnum):
-    rsocket_uri = "rsocketUri"
-    task_id = "taskId"
+    danmaku_client = "danmakuClient"
+    rsocket_ws_url = "rsocketUrL"
+    task_ids = "taskIds"
     ttl_client = "ttlClient"
     ai = "ai"
     api_url = "apiUrl"

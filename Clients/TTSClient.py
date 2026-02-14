@@ -10,15 +10,16 @@ from PySide6.QtCore import QUrl, QBuffer, QObject, QIODeviceBase, QByteArray
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from yarl import URL
 
-from Exceptions import AIClientException
+from Exceptions import AITTSClientException
+from Exceptions.TTSClients import EdgeTTSClientException
 from Models import TTSClientConfig, AIClientConfig, AIWeightsPaths
 
 
 class TTSClient(QObject):
-    def __init__(self, config: dict, is_test: bool = True):
+    def __init__(self, config: dict, is_test: bool = True, queue=None):
         super().__init__()
         self.config: TTSClientConfig = TTSClientConfig(config)
-        self.tts_queue = asyncio.Queue()
+        self.tts_queue = asyncio.Queue() if queue is None else queue
         self._session = None
         self._running = False
         self._worker_task = None
@@ -54,6 +55,9 @@ class TTSClient(QObject):
 
     def start(self):
         logging.info("[TTS] 启动 TTS 工作线程")
+        if self._worker_task:
+            logging.warning("[TTS] TTS 工作线程已在运行中")
+            return
         if not self._session:
             self._session = aiohttp.ClientSession()
         self._running = True
@@ -127,13 +131,13 @@ def get_name(full_name: str) -> str:
     if match:
         name += match.group()
     else:
-        raise AIClientException("模型名提取失败")
+        raise AITTSClientException("模型名提取失败")
     return name
 
 
 class AITTSClient(TTSClient):
-    def __init__(self, conf_dict: dict):
-        super().__init__(conf_dict)
+    def __init__(self, conf_dict: dict, queue=None):
+        super().__init__(conf_dict, queue=queue)
         self.config: TTSClientConfig = TTSClientConfig(conf_dict)
         self.ai_config = AIClientConfig(conf_dict)
         self._weights: dict[str, AIWeightsPaths] = defaultdict()
@@ -161,7 +165,7 @@ class AITTSClient(TTSClient):
                 await self._post_tts(target_url, post_data)
 
             except Exception as e:
-                ex = AIClientException(e)
+                ex = AITTSClientException(e)
                 logging.error(ex)
             finally:
                 self.tts_queue.task_done()
@@ -174,29 +178,29 @@ class AITTSClient(TTSClient):
             audio_path = path / "reference_audios" / "中文" / "emotions"
             break
         if not audio_path or not audio_path.exists():
-            raise AIClientException(f"未找到模型 {name} 的参考音频文件夹")
+            raise AITTSClientException(f"未找到模型 {name} 的参考音频文件夹")
         audio = None
         for path in audio_path.glob("*.wav"):
             logging.info(f"[TTS][AI] 找到模型 {name} 的示例音频: {path.name}")
             audio = path
             break
         if not audio or not audio.exists():
-            raise AIClientException(f"未找到模型 {name} 的参考音频文件")
+            raise AITTSClientException(f"未找到模型 {name} 的参考音频文件")
         return str(audio)
 
     async def switch_weights(self, name: str) -> bool:
         try:
             if name not in self._weights:
-                raise AIClientException(f"不存在名为 {name} 的模型文件")
+                raise AITTSClientException(f"不存在名为 {name} 的模型文件")
             paths = self._weights[name]
             gpt_success = await self._request_switch_weights("set_gpt_weights", paths.gpt_path)
             sovits_success = await self._request_switch_weights("set_sovits_weights", paths.sovits_path)
             if gpt_success and sovits_success:
                 self.ai_config.ref_audio_path = paths.ref_audio_path
                 return True
-            raise AIClientException("访问失败")
+            raise AITTSClientException("访问失败")
         except Exception as e:
-            ex = AIClientException(f"切换模型文件失败: {e}")
+            ex = AITTSClientException(f"切换模型文件失败: {e}")
             logging.error(ex)
             return False
 
@@ -214,7 +218,7 @@ class AITTSClient(TTSClient):
                     return True
             else:
                 data = await resp.json()
-                logging.error(AIClientException(data["message"]))
+                logging.error(AITTSClientException(data["message"]))
             return False
 
     def _search_gpt_weights(self, gpt_root, sovits_root):
@@ -249,12 +253,27 @@ class AITTSClient(TTSClient):
         try:
             self._search_gpt_weights(gpt_root, sovits_root)
             if not self._weights:
-                raise AIClientException("未找到任何有效的 GPT-SoVits 模型文件，请检查配置路径是否正确")
+                raise AITTSClientException("未找到任何有效的 GPT-SoVits 模型文件，请检查配置路径是否正确")
             else:
                 default_weights = self.weights_names[0]
                 if not await self.switch_weights(default_weights):
-                    raise AIClientException(f"默认模型设置失败: {default_weights}")
+                    raise AITTSClientException(f"默认模型设置失败: {default_weights}")
         except Exception as e:
-            ex = AIClientException(f"扫描模型文件失败: {e}")
+            ex = AITTSClientException(e)
             logging.error(ex)
             raise ex
+
+
+class EdgeTTSClient(TTSClient):
+    async def tts_worker(self):
+        while self._running:
+            text = await self.tts_queue.get()
+            try:
+                logging.info(f"[TTS][Edge-TTS] {text}")
+                await asyncio.sleep(3)
+            except Exception as e:
+                ex = EdgeTTSClientException(e)
+                logging.error(ex)
+                raise ex
+            finally:
+                self.tts_queue.task_done()

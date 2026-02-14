@@ -7,10 +7,12 @@ class ConfigGenerator:
     @classmethod
     def get_default_config(cls):
         default_config = {
-            DefaultConfigName.rsocket_uri: "ws://localhost:9000",
-            DefaultConfigName.task_id: [
-                "id"
-            ],
+            DefaultConfigName.danmaku_client: {
+                DefaultConfigName.rsocket_ws_url:"ws://localhost:9000",
+                DefaultConfigName.task_ids: [
+                    "id"
+                ],
+            },
             DefaultConfigName.ttl_client: {
                 DefaultConfigName.max_queue_size: 5,
                 DefaultConfigName.ai: {
