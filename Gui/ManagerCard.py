@@ -1,9 +1,9 @@
+import logging
 from collections.abc import Callable
 
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                QComboBox, QLabel, QFrame)
 from qasync import asyncSlot
-import logging
 
 from Clients import AITTSClient, TTSClient
 from Clients.TTSClient import EdgeTTSClient

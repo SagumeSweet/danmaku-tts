@@ -1,13 +1,13 @@
+import logging
 from typing import Optional
 
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QTabBar, QStackedWidget)
 from qasync import asyncSlot
-import logging
 
 from Clients import AITTSClient
 from Clients.TTSClient import EdgeTTSClient, TTSClient
-from .Overlay import OverlayPanel
 from .ManagerCard import ManagerCard
+from .Overlay import OverlayPanel
 
 
 class TTSEngineSwitcher(QWidget):
