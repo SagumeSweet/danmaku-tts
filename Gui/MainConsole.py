@@ -11,7 +11,6 @@ class MainConsole(QMainWindow):
         super().__init__()
         self._config: Config = Config(config)
 
-
         self.setWindowTitle("弹幕控制台")
         self.setMinimumSize(400, 600)
         self.setStyleSheet("""
@@ -79,4 +78,6 @@ class MainConsole(QMainWindow):
         """重写关闭事件，确保子窗口一起关闭"""
         if self.panel:
             self.panel.close()
+        if self.engine_switcher:
+            self.engine_switcher.close()
         super().closeEvent(event)

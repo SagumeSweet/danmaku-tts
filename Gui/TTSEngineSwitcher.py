@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Optional
 
@@ -17,6 +18,7 @@ class TTSEngineSwitcher(QWidget):
         self.current_engine_ui: Optional[ManagerCard] = None
         self._danmaku_panel = danmaku_panel
         self._danmaku_panel.tts_client_signal.connect(self._danmaku_panel.set_tts_client)
+        self._close_task = None
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -56,17 +58,21 @@ class TTSEngineSwitcher(QWidget):
         # 默认初始化
         self.on_engine_switched(0)
 
+    async def _del_engine_ui(self):
+        """辅助方法：销毁当前引擎 UI"""
+        logging.info("[EngineSwitcher] 销毁当前引擎")
+        if self.current_engine_ui:
+            await self.current_engine_ui.prepare_to_close()
+            self.container.removeWidget(self.current_engine_ui)
+            self.current_engine_ui.deleteLater()
+            self.current_engine_ui = None
+
     @asyncSlot()
     async def on_engine_switched(self, index):
         """切换引擎：销毁旧 UI，根据引擎类型创建新 UI"""
         logging.info("[EngineSwitcher] 切换 TTS 引擎")
         # --- 彻底销毁旧实例 ---
-        if self.current_engine_ui:
-            # 如果旧实例有特定的关闭逻辑（如下载任务取消），可以在这里调用
-            await self.current_engine_ui.prepare_to_close()
-            self.container.removeWidget(self.current_engine_ui)
-            self.current_engine_ui.deleteLater()
-            self.current_engine_ui = None
+        await self._del_engine_ui()
 
         # --- 根据索引创建对应的组件 ---
         try:
@@ -91,3 +97,10 @@ class TTSEngineSwitcher(QWidget):
 
         except Exception as e:
             logging.error(f"切换 TTS 引擎面板失败: {e}")
+
+    def closeEvent(self, event):
+        """窗口关闭时的清理工作"""
+        logging.info("[EngineSwitcher] 窗口关闭，正在清理资源...")
+        if self.current_engine_ui:
+            self._close_task = asyncio.create_task(self._del_engine_ui())
+        event.accept()
