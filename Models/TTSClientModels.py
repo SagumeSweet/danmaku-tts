@@ -22,10 +22,9 @@ class AIClientConfig:
     def __init__(self, tts_client_config: dict):
         self._api_url: str = tts_client_config[DefaultConfigName.ai][DefaultConfigName.api_url]
         self._ref_audio_root: str = tts_client_config[DefaultConfigName.ai][DefaultConfigName.ref_audio_root]
-        self._prompt_lang: str = tts_client_config[DefaultConfigName.ai][DefaultConfigName.prompt_lang]
         self._gpt_sovits_root: str = tts_client_config[DefaultConfigName.ai][DefaultConfigName.gs_root]
         self._version = "v4"
-        self._target_lang = "zh"
+        self._target_lang = "auto"
         self._ref_audio_path: str = ""
 
     @property
@@ -38,7 +37,15 @@ class AIClientConfig:
 
     @property
     def prompt_lang(self) -> str:
-        return self._prompt_lang
+        relative = self.ref_audio_path.replace(self._ref_audio_root, "")
+        if "中文" in relative:
+            return "zh"
+        elif "英语" in relative:
+            return "en"
+        elif "日语" in relative:
+            return "ja"
+        else:
+            raise ValueError("无法从 ref_audio_path 推断 prompt_lang，请检查路径是否正确")
 
     @property
     def ref_audio_path(self) -> str:
@@ -71,7 +78,7 @@ class AIClientConfig:
 
     @target_lang.setter
     def target_lang(self, target_lang: str):
-        if target_lang not in ["zh", "en", "jp"]:
+        if target_lang not in ["zh", "en", "ja"]:
             raise ValueError()
         self._target_lang = target_lang
 

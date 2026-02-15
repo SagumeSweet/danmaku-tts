@@ -9,7 +9,6 @@ class DefaultConfigName(StrEnum):
     ai = "ai"
     api_url = "apiUrl"
     ref_audio_root = "refAudioRoot"
-    prompt_lang = "promptLang"
     target_lang = "targetLang"
     max_queue_size = "maxQueueSize"
     gs_root = "GPT-SoVitsRoot"

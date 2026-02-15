@@ -49,7 +49,8 @@ class TTSClient(QObject):
                 await self._play_audio(audio_data)
             else:
                 err_text = await resp.text()
-                logging.error(f"[TTS]服务返回错误 [{resp.status}]: {err_text}")
+                ex = AITTSClientException(f"服务返回错误 [{resp.status}]: {err_text}")
+                logging.error(ex)
                 # 如果后端报错，等 1 秒再继续，避免日志刷屏
                 await asyncio.sleep(1)
 
@@ -175,12 +176,12 @@ class AITTSClient(TTSClient):
         audio_path = None
         for path in audio_root.glob(f"{name}"):
             logging.info(f"[TTS][AI] 搜索{path.stem}的示例音频")
-            audio_path = path / "reference_audios" / "中文" / "emotions"
+            audio_path = path
             break
         if not audio_path or not audio_path.exists():
             raise AITTSClientException(f"未找到模型 {name} 的参考音频文件夹")
         audio = None
-        for path in audio_path.glob("*.wav"):
+        for path in audio_path.rglob("*.wav"):
             logging.info(f"[TTS][AI] 找到模型 {name} 的示例音频: {path.name}")
             audio = path
             break
@@ -241,7 +242,6 @@ class AITTSClient(TTSClient):
                     continue
             else:
                 logging.warning(f"未找到与 {gpt_file_path.name} 对应的 SoVits 权重文件，已跳过")
-
 
     async def scan_weights(self):
         self._weights.clear()
