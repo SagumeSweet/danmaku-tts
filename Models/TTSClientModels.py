@@ -78,7 +78,7 @@ class AIClientConfig:
 
     @target_lang.setter
     def target_lang(self, target_lang: str):
-        if target_lang not in ["zh", "en", "ja"]:
+        if target_lang not in ["zh", "en", "ja", "auto"]:
             raise ValueError()
         self._target_lang = target_lang
 

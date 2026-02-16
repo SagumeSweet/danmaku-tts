@@ -147,6 +147,12 @@ class AITTSClient(TTSClient):
     def weights_names(self) -> list[str]:
         return list(self._weights.keys())
 
+    def _set_target_lang(self, text: str):
+        if any('\u3040' <= char <= '\u309f' or '\u30a0' <= char <= '\u30ff' for char in text):
+            self.ai_config.target_lang = "auto"
+        else:
+            self.ai_config.target_lang = "zh"
+
     @override
     async def tts_worker(self):
         while self._running:
@@ -157,6 +163,7 @@ class AITTSClient(TTSClient):
             try:
                 logging.info(f"[TTS][AI] {text}")
                 target_url = URL(self.ai_config.api_url) / "tts"
+                self._set_target_lang(text)
 
                 if self._session.closed:
                     self._session = aiohttp.ClientSession()
