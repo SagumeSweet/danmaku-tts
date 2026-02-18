@@ -7,18 +7,18 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
                                QSlider, QStyle, QCheckBox)
 from qasync import asyncSlot
 
-from Clients import TTSClient, DanmakuClient
+from Clients import BaseTTSClient, DanmakuClient
 from Models import ResponseMessageDto
 from .DanmakuSettingsPopup import DanmakuSettingsPopup
 
 
 class OverlayPanel(QWidget):
     new_danmu_signal = Signal(str, str)
-    tts_client_signal = Signal(TTSClient)
+    tts_client_signal = Signal(BaseTTSClient)
 
     def __init__(self, danmaku_client: DanmakuClient):
         super().__init__()
-        self._tts_client: Optional[TTSClient] = None
+        self._tts_client: Optional[BaseTTSClient] = None
         self._danmaku_client: DanmakuClient = danmaku_client
         self._danmaku_client.danmu_received.connect(self.add_danmu)
         self._danmaku_task = None
@@ -132,7 +132,7 @@ class OverlayPanel(QWidget):
         content = msg.content
         if self._tts_client:
             text = f"{nick}说:{content[:125].replace('[', '').replace(']', '')}"
-            self._tts_client.tts_queue_put(text)
+            self._tts_client.tts_queue.put_nowait(text)
 
         text_html = f"<b style='color: #FFCA28; text-shadow: 1px 1px 2px black;'>{nick}:</b> <span style='color: white; text-shadow: 1px 1px 2px black;'>{content}</span>"
         lbl = QLabel(text_html)
@@ -191,8 +191,7 @@ class OverlayPanel(QWidget):
 
     async def stop_worker(self):
         if self._tts_client:
-            self._tts_client.player.stop()
-            await self._tts_client.stop_worker()
+            await self._tts_client.stop()
 
     def on_hide(self):
         self._is_locked = False
@@ -207,8 +206,8 @@ class OverlayPanel(QWidget):
         if self._tts_client:
             self._tts_client.start()
 
-    @asyncSlot(TTSClient)
-    async def set_tts_client(self, tts_client: TTSClient):
+    @asyncSlot(BaseTTSClient)
+    async def set_tts_client(self, tts_client: BaseTTSClient):
         if self._tts_client is not None:
             old_tts_client = self._tts_client
             await old_tts_client.close()

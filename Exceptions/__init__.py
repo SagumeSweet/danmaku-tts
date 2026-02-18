@@ -1,11 +1,14 @@
 from .DanmakuClient import DanmakuClientException, RsocketClientException
 from .GUI import ManagerCardException
-from .TTSClients import TTSClientException, AITTSClientException
+from .tts_client_exceptions import TTSException, AITTSException, EdgeTTSException, TTSPlaybackException, TTSNetworkException
 
 __all__ = [
-    "TTSClientException",
-    "AITTSClientException",
+    "TTSException",
+    "AITTSException",
     "ManagerCardException",
     "DanmakuClientException",
-    "RsocketClientException"
+    "RsocketClientException",
+    "EdgeTTSException",
+    "TTSPlaybackException",
+    "TTSNetworkException"
 ]

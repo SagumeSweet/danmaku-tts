@@ -5,8 +5,7 @@ from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                QComboBox, QLabel, QFrame)
 from qasync import asyncSlot
 
-from Clients import AITTSClient, TTSClient
-from Clients.TTSClient import EdgeTTSClient
+from Clients import AITTSClient, BaseTTSClient, EdgeTTSClient
 from Exceptions import ManagerCardException
 
 
@@ -16,12 +15,11 @@ class ManagerCard(QGroupBox):
         self._tts_client = client
 
     @property
-    def tts_client(self) -> TTSClient:
+    def tts_client(self) -> BaseTTSClient:
         return self._tts_client
 
     async def prepare_to_close(self):
         await self._tts_client.close()
-
 
 
 class WeightsManagerCard(ManagerCard):
@@ -126,7 +124,7 @@ class WeightsManagerCard(ManagerCard):
 
         async def switch_weights():
             # --- 2. 执行切换逻辑 ---
-            success = await self._tts_client.not_test.switch_weights(weights_name)
+            success = await self._tts_client.switch_weights(weights_name)
             if success:
                 # --- 3. 更新成功后的状态文本 ---
                 self.lbl_status_title.setText("当前状态: <b style='color: #4CAF50;'>已就绪</b>")
@@ -137,6 +135,7 @@ class WeightsManagerCard(ManagerCard):
 
         await self._change_status(switch_weights, "切换模型")
 
+
 class EdgeTTSManagerCard(ManagerCard):
     def __init__(self, edge_tts_client: EdgeTTSClient):
         super().__init__("Edge-TTS 管理", edge_tts_client)
@@ -145,7 +144,7 @@ class EdgeTTSManagerCard(ManagerCard):
 
 
 class OtherTTSManagerCard(ManagerCard):
-    def __init__(self, client: TTSClient):
+    def __init__(self, client: BaseTTSClient):
         super().__init__("其他 TTS", client)
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel("敬请期待..."))

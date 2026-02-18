@@ -6,3 +6,4 @@ aiohttp~=3.13.3
 rsocket~=0.4.20
 yarl
 reactivestreams
+edge-tts

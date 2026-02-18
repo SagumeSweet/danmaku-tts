@@ -5,8 +5,7 @@ from typing import Optional
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QTabBar, QStackedWidget)
 from qasync import asyncSlot
 
-from Clients import AITTSClient
-from Clients.TTSClient import EdgeTTSClient, TTSClient
+from Clients import AITTSClient, EdgeTTSClient, BaseTTSClient
 from .ManagerCard import ManagerCard
 from .Overlay import OverlayPanel
 
@@ -86,7 +85,7 @@ class TTSEngineSwitcher(QWidget):
 
             else:
                 from .ManagerCard import OtherTTSManagerCard
-                self.current_engine_ui = OtherTTSManagerCard(TTSClient(self._config))
+                self.current_engine_ui = OtherTTSManagerCard(BaseTTSClient(self._config))
 
             # --- 挂载到容器 ---
             self.container.addWidget(self.current_engine_ui)

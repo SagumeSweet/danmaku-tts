@@ -1,8 +1,11 @@
 from .DanmakuClient import DanmakuClient
-from .TTSClient import TTSClient, AITTSClient
+from .ai_client import AITTSClient
+from .base_tts import BaseTTSClient
+from .edge_client import EdgeTTSClient
 
 __all__ = [
-    'TTSClient',
+    'BaseTTSClient',
     'AITTSClient',
     'DanmakuClient',
+    'EdgeTTSClient'
 ]
