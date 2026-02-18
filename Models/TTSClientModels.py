@@ -57,7 +57,7 @@ class AIClientConfig:
     def prompt_text(self) -> str:
         if not self._ref_audio_path:
             raise ValueError("ref_audio_path 未设置")
-        text = PurePath(self._ref_audio_path).stem[5:]
+        text = PurePath(self._ref_audio_path).stem[4:]
         return text
 
     @property

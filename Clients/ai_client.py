@@ -105,7 +105,6 @@ class AITTSClient(BaseTTSClient):
 
     async def _request_switch_weights(self, endpoint: str, path: str) -> bool:
         logging.info("[TTS][AI] 切换模型文件: " + path)
-        self._is_test = True
         params = {"weights_path": path}
         target_url = (URL(self.ai_config.api_url) / endpoint).with_query(params)
         session = await self._get_session()
