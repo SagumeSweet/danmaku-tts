@@ -4,7 +4,7 @@ from Enums import DefaultConfigName
 class Config:
     def __init__(self, config: dict):
         self._danmaku_client = config.get(DefaultConfigName.danmaku_client, {})
-        self._tts_client = config.get(DefaultConfigName.ttl_client, {})
+        self._tts_client = config.get(DefaultConfigName.tts_client, {})
 
     @property
     def danmaku_client(self) -> dict:

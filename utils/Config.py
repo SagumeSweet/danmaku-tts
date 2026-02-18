@@ -13,7 +13,7 @@ class ConfigGenerator:
                     "id"
                 ],
             },
-            DefaultConfigName.ttl_client: {
+            DefaultConfigName.tts_client: {
                 DefaultConfigName.max_queue_size: 5,
                 DefaultConfigName.ai: {
                     DefaultConfigName.gs_root: "test/GPT-SoVITS",

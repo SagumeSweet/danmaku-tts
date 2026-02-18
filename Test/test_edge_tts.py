@@ -1,10 +1,12 @@
-import unittest
+import logging
 
+from Clients import EdgeTTSClient
+from test_utils import TTSHandlerTest
 
-class MyTestCase(unittest.TestCase):
-    def test_something(self):
-        self.assertEqual(True, False)  # add assertion here
+logging.basicConfig(
+    level=logging.DEBUG
+)
 
-
-if __name__ == '__main__':
-    unittest.main()
+if __name__ == "__main__":
+    tester = TTSHandlerTest(EdgeTTSClient)
+    tester.run()

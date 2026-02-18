@@ -5,7 +5,7 @@ class DefaultConfigName(StrEnum):
     danmaku_client = "danmakuClient"
     rsocket_ws_url = "rsocketUrL"
     task_ids = "taskIds"
-    ttl_client = "ttlClient"
+    tts_client = "ttsClient"
     ai = "ai"
     api_url = "apiUrl"
     ref_audio_root = "refAudioRoot"

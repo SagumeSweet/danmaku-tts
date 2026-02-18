@@ -13,7 +13,7 @@ from .Overlay import OverlayPanel
 class TTSEngineSwitcher(QWidget):
     def __init__(self, config: dict, danmaku_panel: OverlayPanel):
         super().__init__()
-        self._config = config  # 这里的 client 应该是总控
+        self._config = config
         self.current_engine_ui: Optional[ManagerCard] = None
         self._danmaku_panel = danmaku_panel
         self._danmaku_panel.tts_client_signal.connect(self._danmaku_panel.set_tts_client)
