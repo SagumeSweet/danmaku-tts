@@ -1,7 +1,9 @@
 import asyncio
 import json
 import logging
+import os
 import sys
+import threading
 from typing import override
 
 from PySide6.QtCore import QObject, Signal
@@ -25,6 +27,8 @@ class QtLogHandler(logging.Handler):
         msg = self.format(record)
         self.signaler.signal.emit(msg)
 
+class SystemLogSignaler(QObject):
+    signal = Signal(str)
 
 class TTSHandlerTest:
     def __init__(self, client_class, gui_class=None):
@@ -68,12 +72,43 @@ class TTSHandlerTest:
         handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s", "%H:%M:%S"))
         root_logger.addHandler(handler)
 
+        # 创建系统信号器
+        self.sys_log_signaler = SystemLogSignaler()
+        self.sys_log_signaler.signal.connect(self.log_display.appendPlainText)
+
+        # 启动劫持逻辑
+        self._redirect_system_output()
+
+    def _redirect_system_output(self):
+        """劫持 C/C++ 层面的 stdout/stderr (如 FFmpeg 的输出)"""
+        # 创建管道
+        pipe_out, pipe_in = os.pipe()
+
+        # 复制当前的 stderr (为了能恢复或者在必要时观察)
+        # 并将 stderr (2) 重定向到管道的输入端
+        os.dup2(pipe_in, sys.stderr.fileno())
+
+        # 如果你想连 stdout (1) 也拦截，可以取消下面这行的注释
+        # os.dup2(pipe_in, sys.stdout.fileno())
+
+        def _read_pipe():
+            # 这里必须在底层循环读取管道
+            with os.fdopen(pipe_out, 'r', errors='replace') as pipe:
+                for line in iter(pipe.readline, ''):
+                    # 通过信号发送到 GUI
+                    self.sys_log_signaler.signal.emit(line.strip())
+
+        # 启动后台守护线程读取管道内容
+        thread = threading.Thread(target=_read_pipe, daemon=True)
+        thread.start()
+
     async def _input_loop(self):
         print(f"\n[{self.client.__class__.__name__}] 交互模式已启动")
         print(">>> 请在当前控制台输入文字并回车 (输入 'exit' 退出)")
 
         while True:
-            text = await self.loop.run_in_executor(None, lambda: input(">>> ").strip())
+            text = await asyncio.to_thread(input, ">>> ")
+            text = text.strip()
 
             if not text: continue
             if text.lower() == 'exit': break
